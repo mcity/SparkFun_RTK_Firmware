@@ -15,6 +15,7 @@ void updateDisplay()
         case (STATE_ROVER_NOT_STARTED):
           //Do nothing. Static display shown during state change.
           break;
+        case (STATE_ROVER_CLIENT_CONNECTED):
         case (STATE_ROVER_NO_FIX):
           paintRoverNoFix();
           break;
@@ -121,9 +122,9 @@ void displaySplash()
       printTextwithKerning((char*)"Facet", textX, textY, textKerning);
     }
 
-    oled.setCursor(20, 41);
+    oled.setCursor(0, 41);
     oled.setFontType(0); //Set font to smallest
-    oled.printf("v%d.%d", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR);
+    oled.printf("v%d.%d+Mcity", FIRMWARE_VERSION_MAJOR, FIRMWARE_VERSION_MINOR);
     oled.display();
   }
 }
@@ -317,7 +318,8 @@ void paintBaseState()
 {
   if (online.display == true)
   {
-    if (systemState == STATE_ROVER_NO_FIX ||
+    if (systemState == STATE_ROVER_CLIENT_CONNECTED ||
+        systemState == STATE_ROVER_NO_FIX ||
         systemState == STATE_ROVER_FIX ||
         systemState == STATE_ROVER_RTK_FLOAT ||
         systemState == STATE_ROVER_RTK_FIX)
@@ -438,7 +440,7 @@ void paintLogging()
   }
 }
 
-//Base screen. Display BLE, rover, battery, HorzAcc and SIV
+//Base screen. Display BLE or WiFi, rover, battery, HorzAcc and SIV
 //Blink SIV until fix
 void paintRoverNoFix()
 {

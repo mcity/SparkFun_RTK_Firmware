@@ -1,6 +1,111 @@
 //High frequency tasks made by createTask()
 //And any low frequency tasks that are called by Ticker
 
+char latitude_str[12];
+char longitude_str[12];
+char elevation_str[12];
+char speed_str[12];
+char heading_str[12];
+long alt;
+char json_psm[256];
+bool v2xMessageAvailable;
+
+//If the ZED has any new NMEA data, pass it over to Mcity OS
+//Task for reading data from the GNSS receiver.
+void McityOSF9PSerialReadTask(void *e)
+{
+  while (true)
+  {
+    if (serialGNSS.available())
+    {
+      char c = serialGNSS.read();
+      //Serial.print(c);
+
+      //If we are actively survey-in then do not pass NMEA data from ZED to phone
+      if (systemState == STATE_BASE_TEMP_SETTLE || systemState == STATE_BASE_TEMP_SURVEY_STARTED)
+      {
+        //Do nothing
+      }
+      else if (nmea.process(c) && nmea.isValid()) {
+        dtostrf(nmea.getLatitude() / 1000000.0, 0, 7, latitude_str);
+        dtostrf(nmea.getLongitude() / 1000000.0, 0, 7, longitude_str);
+        if (nmea.getAltitude(alt))
+          dtostrf(alt / 1000., 0, 3, elevation_str);
+        else
+          // JSON null, so the string
+          strcpy(elevation_str, "null"); 
+
+        dtostrf(nmea.getSpeed() / 1000., 0, 3, speed_str);
+        dtostrf(nmea.getCourse() / 1000., 0, 3, heading_str);
+
+        // TODO: use JSON library for this too
+        sprintf_P(json_psm, PSTR("[\"v2x_PSM\", {\"id\": %s, \"payload\": {"
+                            "\"messageSet\": \"J2735_201603\"," 
+                            "\"id\": \"0010BEEF\","
+                            "\"type\": \"pedestrian\","
+                            "\"size\": \"small\","
+                            "\"latitude\": %s,"
+                            "\"longitude\": %s,"
+                            "\"elevation\": %s,"
+                            "\"speed\": %s,"
+                            "\"heading\": %s}}]"), 1, latitude_str, longitude_str, elevation_str, speed_str, heading_str);
+
+        v2xMessageAvailable = true;
+      }
+    }
+
+    taskYIELD();
+  }
+}
+
+//If the we have a new PSM/BSM to send to Mcity OS, do so
+void McityOSSendV2XTask(void *e)
+{
+  while (true)
+  {
+    if (v2xMessageAvailable)
+    {
+      v2xMessageAvailable = false;
+
+      // Send event
+      if (socketIO.isConnected())
+        socketIO.sendEVENT(json_psm);
+    }
+
+    taskYIELD();
+  }
+}
+
+//If the ntrip caster has any new data (NTRIP RTCM, etc), read it in over WiFi and pass along to ZED
+//Task for writing to the GNSS receiver
+void F9PSerialWriteTaskWiFi(void *e)
+{
+  while (true)
+  {
+    //Receive RTCM corrections WiFi and pass along to ZED
+    if (ntrip_c.available())
+    {
+      while (ntrip_c.available())
+      {
+        if (inTestMode == false)
+        {
+          //Pass bytes to GNSS receiver
+          char ch = ntrip_c.read();
+          serialGNSS.write(ch);
+        }
+        else
+        {
+          char ch = ntrip_c.read();
+          Serial.printf("I heard: %c\n", ch);
+          incomingBTTest = ch; //Displayed during system test
+        }
+      }
+    }
+
+    taskYIELD();
+  }
+}
+
 //If the phone has any new data (NTRIP RTCM, etc), read it in over Bluetooth and pass along to ZED
 //Task for writing to the GNSS receiver
 void F9PSerialWriteTask(void *e)

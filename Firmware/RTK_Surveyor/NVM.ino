@@ -118,9 +118,11 @@ void recordSystemSettingsToFile()
       settingsFile.println("radioPortBaud=" + (String)settings.radioPortBaud);
       settingsFile.println("enableSBAS=" + (String)settings.enableSBAS);
       settingsFile.println("enableNtripServer=" + (String)settings.enableNtripServer);
+      settingsFile.println("enableNtripClient=" + (String)settings.enableNtripClient);
       settingsFile.println("casterHost=" + (String)settings.casterHost);
       settingsFile.println("casterPort=" + (String)settings.casterPort);
       settingsFile.println("mountPoint=" + (String)settings.mountPoint);
+      settingsFile.println("mountPointUser=" + (String)settings.mountPointUser);
       settingsFile.println("mountPointPW=" + (String)settings.mountPointPW);
       settingsFile.println("wifiSSID=" + (String)settings.wifiSSID);
       settingsFile.println("wifiPW=" + (String)settings.wifiPW);
@@ -426,6 +428,8 @@ bool parseLine(char* str) {
     settings.enableSBAS = d;
   else if (strcmp(settingName, "enableNtripServer") == 0)
     settings.enableNtripServer = d;
+  else if (strcmp(settingName, "enableNtripClient") == 0)
+    settings.enableNtripClient = d;
   else if (strcmp(settingName, "casterHost") == 0)
     strcpy(settings.casterHost, settingValue);
   else if (strcmp(settingName, "casterPort") == 0)

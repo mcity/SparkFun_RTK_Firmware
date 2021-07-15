@@ -40,7 +40,7 @@
 */
 
 const int FIRMWARE_VERSION_MAJOR = 1;
-const int FIRMWARE_VERSION_MINOR = 3;
+const int FIRMWARE_VERSION_MINOR = 4;
 
 //Define the RTK board identifier:
 //  This is an int which is unique to this variant of the RTK Surveyor hardware which allows us
@@ -117,7 +117,7 @@ const TickType_t fatSemaphore_shortWait_ms = 10 / portTICK_PERIOD_MS;
 const TickType_t fatSemaphore_longWait_ms = 200 / portTICK_PERIOD_MS;
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-//Connection settings to NTRIP Caster
+//Connection settings to NTRIP Caster and Client
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <WiFi.h>
 #include "esp_wifi.h" //Needed for init/deinit of resources to free up RAM
@@ -125,12 +125,34 @@ const TickType_t fatSemaphore_longWait_ms = 200 / portTICK_PERIOD_MS;
 WiFiClient caster;
 const char * ntrip_server_name = "SparkFun_RTK_Surveyor";
 
+#include "NTRIPClient.h"
+
+NTRIPClient ntrip_c;
+
+//NMEA parser for transmission to McityOS
+#include <MicroNMEA.h>
+
+char nmeaBuffer[85];
+MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
+
 unsigned long lastServerSent_ms = 0; //Time of last data pushed to caster
 unsigned long lastServerReport_ms = 0; //Time of last report of caster bytes sent
 int maxTimeBeforeHangup_ms = 10000; //If we fail to get a complete RTCM frame after 10s, then disconnect from caster
 
 uint32_t casterBytesSent = 0; //Just a running total
 uint32_t casterResponseWaitStartTime = 0; //Used to detect if caster service times out
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+//Websocket connection to Mcity OS
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+#include <ArduinoJson.h>
+
+#include <WebSocketsClient.h>
+#include <SocketIOclient.h>
+
+#define USE_SERIAL Serial
+
+SocketIOclient socketIO;
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //GNSS configuration
@@ -199,6 +221,10 @@ uint8_t rBuffer[SERIAL_SIZE_RX]; //Buffer for reading from F9P to SPP
 uint8_t wBuffer[SERIAL_SIZE_RX]; //Buffer for writing from incoming SPP to F9P
 TaskHandle_t F9PSerialReadTaskHandle = NULL; //Store handles so that we can kill them if user goes into WiFi NTRIP Server mode
 TaskHandle_t F9PSerialWriteTaskHandle = NULL; //Store handles so that we can kill them if user goes into WiFi NTRIP Server mode
+TaskHandle_t F9PSerialWriteTaskWiFiHandle = NULL; //Store handle to NTRIP client task in case we need to halt
+
+TaskHandle_t McityOSF9PSerialReadTaskHandle = NULL; //Mcity OS PSM/BSM construction task handle
+TaskHandle_t McityOSSendV2XTaskHandle = NULL; //Mcity OS task transmission handle
 
 TaskHandle_t startUART2TaskHandle = NULL; //Dummy task to start UART2 on core 0.
 bool uart2Started = false;
@@ -206,6 +232,7 @@ bool uart2Started = false;
 //Reduced stack size from 10,000 to 2,000 to make room for WiFi/NTRIP server capabilities
 const int readTaskStackSize = 2000;
 const int writeTaskStackSize = 2000;
+const int mcityReadTaskStackSize = 2500;
 
 char incomingBTTest = 0; //Stores incoming text over BT when in test mode
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -354,6 +381,9 @@ void loop()
 
   reportHeap(); //If debug enabled, report free heap
 
+  if (settings.enableMcityOS == true)
+    socketIO.loop();
+    
   //Menu system via ESP32 USB connection
   if (Serial.available()) menuMain(); //Present user menu
 

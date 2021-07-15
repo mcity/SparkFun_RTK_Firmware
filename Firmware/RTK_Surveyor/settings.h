@@ -6,6 +6,10 @@ typedef enum
   STATE_ROVER_FIX,
   STATE_ROVER_RTK_FLOAT,
   STATE_ROVER_RTK_FIX,
+  STATE_ROVER_WIFI_STARTED,
+  STATE_ROVER_WIFI_CONNECTED,
+  STATE_ROVER_CLIENT_STARTED,
+  STATE_ROVER_CLIENT_CONNECTED,
   STATE_BASE_NOT_STARTED,
   STATE_BASE_TEMP_SETTLE, //User has indicated base, but current pos accuracy is too low
   STATE_BASE_TEMP_SURVEY_STARTED,
@@ -263,12 +267,17 @@ struct struct_settings {
   uint32_t radioPortBaud = 57600; //Default to 57600bps to support connection to SiK1000 radios
   bool enableSBAS = false; //Bug in ZED-F9P v1.13 firmware causes RTK LED to not light when RTK Floating with SBAS on.
   bool enableNtripServer = false;
-  char casterHost[50] = "rtk2go.com"; //It's free...
-  uint16_t casterPort = 2101;
-  char mountPoint[50] = "bldr_dwntwn2";
-  char mountPointPW[50] = "WR5wRo4H";
-  char wifiSSID[50] = "TRex";
-  char wifiPW[50] = "parachutes";
+  bool enableNtripClient = true;
+  char casterHost[50] = "141.211.25.177"; // Mcity
+  uint16_t casterPort = 2102;
+  char mountPoint[50] = "MTF";
+  char mountPointUser[50] = "mtf";
+  char mountPointPW[50] = "Mcity";
+  char wifiSSID[50] = "Mcity-2G";
+  char wifiPW[50] = "splb0splb0";
+  bool enableMcityOS = true;
+  char mcityOSServer[50] = "octane.mvillage.um.city";
+  char mcityOSAPIKey[20] = "reticulatingsplines";
   float surveyInStartingAccuracy = 1.0; //Wait for 1m horizontal positional accuracy before starting survey in
   uint16_t measurementRate = 250; //Elapsed ms between GNSS measurements. 25ms to 65535ms. Default 4Hz.
   uint16_t navigationRate = 1; //Ratio between number of measurements and navigation solutions. Default 1 for 4Hz (with measurementRate).

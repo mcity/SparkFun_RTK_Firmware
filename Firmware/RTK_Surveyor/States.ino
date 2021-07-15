@@ -27,14 +27,133 @@ void updateSystemState()
             return;
           }
 
-          stopWiFi(); //Turn off WiFi and release all resources
-          startBluetooth(); //Turn on Bluetooth with 'Rover' name
-
+          // If we are configured to run the NTRIP client, use WiFi
+          if (settings.enableNtripClient == true) {
+            endBluetooth(); //Turn off Bluetooth 
+            startWiFi(); //Turn on WiFi
+          } else {
+            stopWiFi(); //Turn off WiFi and release all resources
+            startBluetooth(); //Turn on Bluetooth with 'Rover' name
+          }
+          
           if (productVariant == RTK_SURVEYOR)
             digitalWrite(pin_baseStatusLED, LOW);
           displayRoverSuccess(500);
 
-          changeState(STATE_ROVER_NO_FIX);
+          if (settings.enableNtripClient) {
+            changeState(STATE_ROVER_WIFI_STARTED);
+          } else {
+            changeState(STATE_ROVER_NO_FIX);
+          }
+        }
+        break;
+
+      //Check to see if we have connected over WiFi
+      case (STATE_ROVER_WIFI_STARTED):
+        {
+          byte wifiStatus = WiFi.status();
+          if (wifiStatus == WL_CONNECTED)
+          {
+            radioState = WIFI_CONNECTED;
+
+            changeState(STATE_ROVER_WIFI_CONNECTED);
+            
+            if (settings.enableMcityOS == true)
+              setupMcityOS();
+          }
+          else
+          {
+            Serial.print(F("WiFi Status: "));
+            switch (wifiStatus) {
+              case WL_NO_SSID_AVAIL:
+                Serial.printf("SSID '%s' not detected\n\r", settings.wifiSSID);
+                break;
+              case WL_NO_SHIELD: Serial.println(F("WL_NO_SHIELD")); break;
+              case WL_IDLE_STATUS: Serial.println(F("WL_IDLE_STATUS")); break;
+              case WL_SCAN_COMPLETED: Serial.println(F("WL_SCAN_COMPLETED")); break;
+              case WL_CONNECTED: Serial.println(F("WL_CONNECTED")); break;
+              case WL_CONNECT_FAILED: Serial.println(F("WL_CONNECT_FAILED")); break;
+              case WL_CONNECTION_LOST: Serial.println(F("WL_CONNECTION_LOST")); break;
+              case WL_DISCONNECTED: Serial.println(F("WL_DISCONNECTED")); break;
+            }
+            delay(1000);
+          }
+        }
+        break;
+
+      case (STATE_ROVER_WIFI_CONNECTED):
+        {
+          if (productVariant == RTK_SURVEYOR)
+          {
+            digitalWrite(pin_positionAccuracyLED_1cm, LOW);
+            digitalWrite(pin_positionAccuracyLED_10cm, LOW);
+            digitalWrite(pin_positionAccuracyLED_100cm, LOW);
+          }
+
+          //Ensure we aren't still sending NTRIP data to ublox while we (re)connect
+          stopNtripClientStream();
+
+          //Open connection to NTRIP service
+          if (ntrip_c.reqSrcTbl(settings.casterHost, settings.casterPort))
+          {
+            Serial.println("Requested SourceTable.");
+
+            changeState(STATE_ROVER_CLIENT_STARTED);
+          }
+          else
+          {
+            Serial.println("SourceTable request error");
+
+            delay(5000);
+
+            changeState(STATE_ROVER_WIFI_STARTED);
+          }
+          
+        }
+        break;
+
+      //Read source table from NTRIP caster
+      case (STATE_ROVER_CLIENT_STARTED):
+        {
+          Serial.println(F("Requesting SourceTable is OK"));
+          ntrip_c.stop(); //Need to call "stop" function for next request.
+
+          Serial.println(F("Requesting MountPoint's Raw data"));
+          if(!ntrip_c.reqRaw(settings.casterHost, settings.casterPort, settings.mountPoint, settings.mountPointUser, settings.mountPointPW))
+          {
+            Serial.println(F("Check NTRIP caster credentials"));
+
+            ntrip_c.stop();
+
+            changeState(STATE_ROVER_WIFI_STARTED);
+          }
+          else 
+          {
+            Serial.println(F("Requesting MountPoint is OK"));
+
+            // Stream RTCM data to ublox
+            startNtripClientStream();
+            
+            changeState(STATE_ROVER_CLIENT_CONNECTED);
+          }
+        }
+        break;
+
+      //Monitor connected state
+      case (STATE_ROVER_CLIENT_CONNECTED):
+        {
+          cyclePositionLEDs();
+
+          if (ntrip_c.connected() == false)
+          {
+            Serial.println(F("NTRIP Client no longer connected. Reconnecting..."));
+            
+            changeState(STATE_ROVER_WIFI_STARTED); //Return to 2 earlier states to try to reconnect
+          } 
+          else
+          {           
+            changeState(STATE_ROVER_NO_FIX);
+          }
         }
         break;
 
@@ -54,6 +173,10 @@ void updateSystemState()
             changeState(STATE_ROVER_RTK_FLOAT);
           else if (rtkType == 2) //RTK Fix
             changeState(STATE_ROVER_RTK_FIX);
+          else if (settings.enableNtripClient == true) {
+            // check to ensure we still have an NTRIP connection
+            changeState(STATE_ROVER_CLIENT_CONNECTED);
+          }
         }
         break;
 
@@ -532,6 +655,18 @@ void changeState(SystemState newState)
       break;
     case (STATE_ROVER_RTK_FIX):
       Serial.println(F("State: Rover - RTK Fix"));
+      break;
+    case (STATE_ROVER_WIFI_STARTED):
+      Serial.println(F("State: Rover - WiFi Started"));
+      break;
+    case (STATE_ROVER_WIFI_CONNECTED):
+      Serial.println(F("State: Rover - WiFi Connected"));
+      break;
+    case (STATE_ROVER_CLIENT_STARTED):
+      Serial.println(F("State: Rover - NTRIP Client Started"));
+      break;
+    case (STATE_ROVER_CLIENT_CONNECTED):
+      Serial.println(F("State: Rover - NTRIP Client Connected"));
       break;
     case (STATE_BASE_NOT_STARTED):
       Serial.println(F("State: Base - Not Started"));
