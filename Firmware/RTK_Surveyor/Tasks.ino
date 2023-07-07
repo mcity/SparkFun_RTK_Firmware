@@ -38,16 +38,16 @@ void McityOSF9PSerialReadTask(void *e)
         dtostrf(nmea.getSpeed() / 1000., 0, 3, speed_str);
         dtostrf(nmea.getCourse() / 1000., 0, 3, heading_str);
 
-        // sprintf_P(json_psm, PSTR("[\"v2x_PSM\", {\"id\": 1, \"payload\": {"
-        //                     "\"messageSet\": \"J2735_201603\"," 
-        //                     "\"id\": \"0010BEEF\","
-        //                     "\"type\": \"pedestrian\","
-        //                     "\"size\": \"small\","
-        //                     "\"latitude\": %s,"
-        //                     "\"longitude\": %s,"
-        //                     "\"elevation\": %s,"
-        //                     "\"speed\": %s,"
-        //                     "\"heading\": %s}}]"), latitude_str, longitude_str, elevation_str, speed_str, heading_str);
+        sprintf_P(json_psm, PSTR("[\"v2x_PSM\", {\"id\": 1, \"payload\": {"
+                            "\"messageSet\": \"J2735_201603\"," 
+                            "\"id\": \"0010BEEF\","
+                            "\"type\": \"pedestrian\","
+                            "\"size\": \"small\","
+                            "\"latitude\": %s,"
+                            "\"longitude\": %s,"
+                            "\"elevation\": %s,"
+                            "\"speed\": %s,"
+                            "\"heading\": %s}}]"), latitude_str, longitude_str, elevation_str, speed_str, heading_str);
 
         v2xMessageAvailable = true;
       }
@@ -67,12 +67,10 @@ void McityOSSendV2XTask(void *e)
       v2xMessageAvailable = false;
 
       // Send event
-//      if (wsclient.available())
-      if (wsclient.isConnected()) {
-        Serial.println("Sending test");
-        wsclient.sendTXT("test");
+      if (socketIO.isConnected()) {
+        //Serial.printf("Sending position: %s\n", json_psm);
+        socketIO.sendEVENT(json_psm, 0);
       }
-        // socketIO.sendEVENT("test");
     }
 
     taskYIELD();

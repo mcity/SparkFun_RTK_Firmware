@@ -40,7 +40,7 @@
 */
 
 const int FIRMWARE_VERSION_MAJOR = 1;
-const int FIRMWARE_VERSION_MINOR = 4;
+const int FIRMWARE_VERSION_MINOR = 5;
 
 //Define the RTK board identifier:
 //  This is an int which is unique to this variant of the RTK Surveyor hardware which allows us
@@ -146,7 +146,7 @@ uint32_t casterResponseWaitStartTime = 0; //Used to detect if caster service tim
 //Websocket connection to Mcity OS
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <ArduinoJson.h>
-//
+
 #include <WebSocketsClient.h>
 #include <SocketIOclient.h>
 //
@@ -155,7 +155,9 @@ uint32_t casterResponseWaitStartTime = 0; //Used to detect if caster service tim
 //SocketIOclient socketIO;
 //#include <ArduinoWebsockets.h>
 
-WebSocketsClient wsclient;
+//WebSocketsClient wsclient;
+SocketIOclient socketIO;
+
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
@@ -387,9 +389,9 @@ void loop()
 
 //  if (settings.enableMcityOS == true && wsclient.available())
   if (settings.enableMcityOS == true)
-    wsclient.loop();
+//    wsclient.loop();
 //    wsclient.poll();
-//    socketIO.loop();
+    socketIO.loop();
     
   //Menu system via ESP32 USB connection
   if (Serial.available()) menuMain(); //Present user menu
