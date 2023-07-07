@@ -273,7 +273,7 @@ struct struct_settings {
   char mountPoint[50] = "MTF";
   char mountPointUser[50] = "mtf";
   char mountPointPW[50] = "Mcity";
-  char wifiSSID[50] = "Mcity-2G";
+  char wifiSSID[50] = "Mcity";
   char wifiPW[50] = "splb0splb0";
   bool enableMcityOS = true;
   char mcityOSServer[50] = "octane.mvillage.um.city";

@@ -7,7 +7,7 @@ char elevation_str[12];
 char speed_str[12];
 char heading_str[12];
 long alt;
-char json_psm[256];
+char json_psm[512] = "['v2x_PSM', {'id': 1, 'payload': {'longitude': -83.698641, 'latitude': 42.299598}}]";
 bool v2xMessageAvailable;
 
 //If the ZED has any new NMEA data, pass it over to Mcity OS
@@ -38,17 +38,16 @@ void McityOSF9PSerialReadTask(void *e)
         dtostrf(nmea.getSpeed() / 1000., 0, 3, speed_str);
         dtostrf(nmea.getCourse() / 1000., 0, 3, heading_str);
 
-        // TODO: use JSON library for this too
-        sprintf_P(json_psm, PSTR("[\"v2x_PSM\", {\"id\": %s, \"payload\": {"
-                            "\"messageSet\": \"J2735_201603\"," 
-                            "\"id\": \"0010BEEF\","
-                            "\"type\": \"pedestrian\","
-                            "\"size\": \"small\","
-                            "\"latitude\": %s,"
-                            "\"longitude\": %s,"
-                            "\"elevation\": %s,"
-                            "\"speed\": %s,"
-                            "\"heading\": %s}}]"), 1, latitude_str, longitude_str, elevation_str, speed_str, heading_str);
+        // sprintf_P(json_psm, PSTR("[\"v2x_PSM\", {\"id\": 1, \"payload\": {"
+        //                     "\"messageSet\": \"J2735_201603\"," 
+        //                     "\"id\": \"0010BEEF\","
+        //                     "\"type\": \"pedestrian\","
+        //                     "\"size\": \"small\","
+        //                     "\"latitude\": %s,"
+        //                     "\"longitude\": %s,"
+        //                     "\"elevation\": %s,"
+        //                     "\"speed\": %s,"
+        //                     "\"heading\": %s}}]"), latitude_str, longitude_str, elevation_str, speed_str, heading_str);
 
         v2xMessageAvailable = true;
       }
@@ -68,8 +67,12 @@ void McityOSSendV2XTask(void *e)
       v2xMessageAvailable = false;
 
       // Send event
-      if (socketIO.isConnected())
-        socketIO.sendEVENT(json_psm);
+//      if (wsclient.available())
+      if (wsclient.isConnected()) {
+        Serial.println("Sending test");
+        wsclient.sendTXT("test");
+      }
+        // socketIO.sendEVENT("test");
     }
 
     taskYIELD();

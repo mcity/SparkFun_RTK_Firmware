@@ -146,13 +146,17 @@ uint32_t casterResponseWaitStartTime = 0; //Used to detect if caster service tim
 //Websocket connection to Mcity OS
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <ArduinoJson.h>
-
+//
 #include <WebSocketsClient.h>
 #include <SocketIOclient.h>
-
+//
 #define USE_SERIAL Serial
+//
+//SocketIOclient socketIO;
+//#include <ArduinoWebsockets.h>
 
-SocketIOclient socketIO;
+WebSocketsClient wsclient;
+
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //GNSS configuration
@@ -232,7 +236,7 @@ bool uart2Started = false;
 //Reduced stack size from 10,000 to 2,000 to make room for WiFi/NTRIP server capabilities
 const int readTaskStackSize = 2000;
 const int writeTaskStackSize = 2000;
-const int mcityReadTaskStackSize = 2500;
+const int mcityReadTaskStackSize = 2000;
 
 char incomingBTTest = 0; //Stores incoming text over BT when in test mode
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -289,9 +293,9 @@ uint32_t lastAccuracyLEDUpdate = 0;
 uint32_t lastBaseLEDupdate = 0; //Controls the blinking of the Base LED
 
 uint32_t lastFileReport = 0; //When logging, print file record stats every few seconds
-long lastStackReport = 0; //Controls the report rate of stack highwater mark within a task
-uint32_t lastHeapReport = 0; //Report heap every 1s if option enabled
-uint32_t lastTaskHeapReport = 0; //Report task heap every 1s if option enabled
+long lastStackReport = 1; //Controls the report rate of stack highwater mark within a task
+uint32_t lastHeapReport = 1; //Report heap every 1s if option enabled
+uint32_t lastTaskHeapReport = 1; //Report task heap every 1s if option enabled
 uint32_t lastCasterLEDupdate = 0; //Controls the cycling of position LEDs during casting
 
 uint32_t lastSatelliteDishIconUpdate = 0;
@@ -339,7 +343,7 @@ void setup()
   //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
   beginEEPROM();
 
-  //eepromErase();
+  eepromErase();
 
   beginSD(); //Test if SD is present
   if (online.microSD == true)
@@ -381,8 +385,11 @@ void loop()
 
   reportHeap(); //If debug enabled, report free heap
 
+//  if (settings.enableMcityOS == true && wsclient.available())
   if (settings.enableMcityOS == true)
-    socketIO.loop();
+    wsclient.loop();
+//    wsclient.poll();
+//    socketIO.loop();
     
   //Menu system via ESP32 USB connection
   if (Serial.available()) menuMain(); //Present user menu

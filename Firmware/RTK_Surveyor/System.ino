@@ -166,7 +166,7 @@ void startWiFi()
       xTaskCreate(
         McityOSSendV2XTask,
         "McityOS V2XSend", //Just for humans
-        mcityReadTaskStackSize, //Stack Size
+        3200, //Stack Size
         NULL, //Task input parameter
         0, //Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         &McityOSSendV2XTaskHandle); //Task handle
