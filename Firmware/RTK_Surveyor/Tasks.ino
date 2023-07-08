@@ -9,6 +9,7 @@ char heading_str[12];
 long alt;
 char json_psm[512] = "['v2x_PSM', {'id': 1, 'payload': {'longitude': -83.698641, 'latitude': 42.299598}}]";
 bool v2xMessageAvailable;
+uint32_t lastMcityOSSend = 0;
 
 //If the ZED has any new NMEA data, pass it over to Mcity OS
 //Task for reading data from the GNSS receiver.
@@ -62,8 +63,9 @@ void McityOSSendV2XTask(void *e)
 {
   while (true)
   {
-    if (v2xMessageAvailable)
+    if (v2xMessageAvailable && (millis() - lastMcityOSSend > 1000))
     {
+      lastMcityOSSend = millis();
       v2xMessageAvailable = false;
 
       // Send event
