@@ -40,7 +40,7 @@
 */
 
 const int FIRMWARE_VERSION_MAJOR = 1;
-const int FIRMWARE_VERSION_MINOR = 5;
+const int FIRMWARE_VERSION_MINOR = 4;
 
 //Define the RTK board identifier:
 //  This is an int which is unique to this variant of the RTK Surveyor hardware which allows us
@@ -89,6 +89,10 @@ int pin_peripheralPowerControl;
 #include <EEPROM.h>
 #define EEPROM_SIZE 4096 //ESP32 emulates EEPROM in non-volatile storage (external flash IC). Max is 508k.
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
+
+//#if !(USING_DEFAULT_ARDUINO_LOOP_STACK_SIZE)
+uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
+//#endif
 
 //Handy library for setting ESP32 system time to GNSS time
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
@@ -146,19 +150,10 @@ uint32_t casterResponseWaitStartTime = 0; //Used to detect if caster service tim
 //Websocket connection to Mcity OS
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <ArduinoJson.h>
-
-#include <WebSocketsClient.h>
+//#include <WebSocketsClient.h>
 #include <SocketIOclient.h>
-//
-#define USE_SERIAL Serial
-//
-//SocketIOclient socketIO;
-//#include <ArduinoWebsockets.h>
 
-//WebSocketsClient wsclient;
 SocketIOclient socketIO;
-
-
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //GNSS configuration
@@ -211,7 +206,8 @@ float battChangeRate = 0.0;
 //Hardware serial and BT buffers
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 //We use a local copy of the BluetoothSerial library so that we can increase the RX buffer. See issue: https://github.com/sparkfun/SparkFun_RTK_Surveyor/issues/18
-#include "src/BluetoothSerial/BluetoothSerial.h"
+//#include "src/BluetoothSerial/BluetoothSerial.h"
+#include <BluetoothSerial.h>
 BluetoothSerial SerialBT;
 #include "esp_bt.h" //Core access is needed for BT stop. See customBTstop() for more info.
 #include "esp_gap_bt_api.h" //Needed for setting of pin. See issue: https://github.com/sparkfun/SparkFun_RTK_Surveyor/issues/5
@@ -238,7 +234,8 @@ bool uart2Started = false;
 //Reduced stack size from 10,000 to 2,000 to make room for WiFi/NTRIP server capabilities
 const int readTaskStackSize = 2000;
 const int writeTaskStackSize = 2000;
-const int mcityReadTaskStackSize = 2000;
+const int mcityReadTaskStackSize = 2500;
+const int mcityV2XTaskStackSize = 6000;
 
 char incomingBTTest = 0; //Stores incoming text over BT when in test mode
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -246,11 +243,13 @@ char incomingBTTest = 0; //Stores incoming text over BT when in test mode
 //External Display
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <SFE_MicroOLED.h> //Click here to get the library: http://librarymanager/All#SparkFun_Micro_OLED
+//#include <SparkFun_Qwiic_OLED.h>
 #include "icons.h"
 
 #define PIN_RESET 9
 #define DC_JUMPER 1
 MicroOLED oled(PIN_RESET, DC_JUMPER);
+//QwOLEDMicro oled();
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //Firmware binaries loaded from SD
@@ -387,10 +386,7 @@ void loop()
 
   reportHeap(); //If debug enabled, report free heap
 
-//  if (settings.enableMcityOS == true && wsclient.available())
   if (settings.enableMcityOS == true)
-//    wsclient.loop();
-//    wsclient.poll();
     socketIO.loop();
     
   //Menu system via ESP32 USB connection
@@ -399,7 +395,7 @@ void loop()
   //Convert current system time to minutes. This is used in F9PSerialReadTask()/updateLogs() to see if we are within max log window.
   systemTime_minutes = millis() / 1000L / 60;
 
-  delay(10); //A small delay prevents panic if no other I2C or functions are called
+  //delay(10); //A small delay prevents panic if no other I2C or functions are called
 }
 
 //Create or close files as needed (startup or as user changes settings)

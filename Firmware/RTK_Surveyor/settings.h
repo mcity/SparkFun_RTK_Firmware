@@ -249,7 +249,7 @@ struct ubxMsgs
 struct struct_settings {
   int sizeOfSettings = 0; //sizeOfSettings **must** be the first entry and must be int
   int rtkIdentifier = RTK_IDENTIFIER; // rtkIdentifier **must** be the second entry
-  bool printDebugMessages = false;
+  bool printDebugMessages = true;
   bool enableSD = true;
   bool enableDisplay = true;
   int maxLogTime_minutes = 60 * 10; //Default to 10 hours
@@ -276,7 +276,10 @@ struct struct_settings {
   char wifiSSID[50] = "Mcity-2.4";
   char wifiPW[50] = "automated2015";
   bool enableMcityOS = true;
+  bool mcityOSServerUseSSL = true;
+  uint16_t mcityOSServerPort = 443;
   char mcityOSServer[50] = "octane.mvillage.um.city";
+//  char mcityOSServer[50] = "172.16.1.224";
   char mcityOSAPIKey[20] = "reticulatingsplines";
   float surveyInStartingAccuracy = 1.0; //Wait for 1m horizontal positional accuracy before starting survey in
   uint16_t measurementRate = 250; //Elapsed ms between GNSS measurements. 25ms to 65535ms. Default 4Hz.

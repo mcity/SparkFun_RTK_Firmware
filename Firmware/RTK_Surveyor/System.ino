@@ -15,7 +15,7 @@ bool startBluetooth()
 
   sprintf(deviceName, "%s %s-%02X%02X", platformPrefix, stateName, unitMACAddress[4], unitMACAddress[5]); //Base mode
 
-  if (SerialBT.begin(deviceName, false, settings.sppRxQueueSize, settings.sppTxQueueSize) == false) //localName, isMaster, rxBufferSize, txBufferSize
+  if (SerialBT.begin(deviceName, false)) //, settings.sppRxQueueSize, settings.sppTxQueueSize) == false) //localName, isMaster, rxBufferSize, txBufferSize
   {
     Serial.println(F("An error occurred initializing Bluetooth"));
     radioState = RADIO_OFF;
@@ -45,7 +45,7 @@ bool startBluetooth()
   esp_bt_gap_set_pin(pin_type, 4, pin_code);
   //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
-  SerialBT.register_callback(btCallback);
+  //SerialBT.register_callback(btCallback);
   SerialBT.setTimeout(250);
 
   Serial.print(F("Bluetooth broadcasting as: "));
@@ -166,7 +166,7 @@ void startWiFi()
       xTaskCreate(
         McityOSSendV2XTask,
         "McityOS V2XSend", //Just for humans
-        3200, //Stack Size
+        mcityV2XTaskStackSize, //Stack Size
         NULL, //Task input parameter
         0, //Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
         &McityOSSendV2XTaskHandle); //Task handle

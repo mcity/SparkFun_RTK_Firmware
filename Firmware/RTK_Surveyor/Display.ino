@@ -9,12 +9,13 @@ void updateDisplay()
       lastDisplayUpdate = millis();
 
       oled.clear(PAGE); // Clear the display's internal buffer
+      //oled.reset(true);
 
       switch (systemState)
       {
         case (STATE_ROVER_NOT_STARTED):
           //Do nothing. Static display shown during state change.
-          break;
+          //break;
         case (STATE_ROVER_CLIENT_CONNECTED):
         case (STATE_ROVER_NO_FIX):
           paintRoverNoFix();
