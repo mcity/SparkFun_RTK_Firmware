@@ -168,9 +168,9 @@ void updateAccuracyLEDs()
       float f_accuracy = accuracy;
       f_accuracy = f_accuracy / 10000.0; // Convert from mm * 10^-1 to m
 
-      printDebug(F("Rover Accuracy (m): "));
-      printDebug(String(f_accuracy)); // Print the accuracy with 4 decimal places
-      printDebug("\n");
+      Serial.print(F("Rover Accuracy (m): "));
+      Serial.print(f_accuracy, 4); // Print the accuracy with 4 decimal places
+      Serial.println();
 
       if (productVariant == RTK_SURVEYOR)
       {
