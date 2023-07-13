@@ -249,7 +249,7 @@ struct ubxMsgs
 struct struct_settings {
   int sizeOfSettings = 0; //sizeOfSettings **must** be the first entry and must be int
   int rtkIdentifier = RTK_IDENTIFIER; // rtkIdentifier **must** be the second entry
-  bool printDebugMessages = true;
+  bool printDebugMessages = false;
   bool enableSD = true;
   bool enableDisplay = true;
   int maxLogTime_minutes = 60 * 10; //Default to 10 hours

@@ -91,7 +91,7 @@ int pin_peripheralPowerControl;
 //-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 //#if !(USING_DEFAULT_ARDUINO_LOOP_STACK_SIZE)
-uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 16384;
+uint16_t USER_CONFIG_ARDUINO_LOOP_STACK_SIZE = 24576;
 //#endif
 
 //Handy library for setting ESP32 system time to GNSS time
@@ -145,15 +145,6 @@ int maxTimeBeforeHangup_ms = 10000; //If we fail to get a complete RTCM frame af
 
 uint32_t casterBytesSent = 0; //Just a running total
 uint32_t casterResponseWaitStartTime = 0; //Used to detect if caster service times out
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-
-//Websocket connection to Mcity OS
-//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#include <ArduinoJson.h>
-//#include <WebSocketsClient.h>
-#include <SocketIOclient.h>
-
-SocketIOclient socketIO;
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //GNSS configuration
@@ -224,18 +215,12 @@ uint8_t wBuffer[SERIAL_SIZE_RX]; //Buffer for writing from incoming SPP to F9P
 TaskHandle_t F9PSerialReadTaskHandle = NULL; //Store handles so that we can kill them if user goes into WiFi NTRIP Server mode
 TaskHandle_t F9PSerialWriteTaskHandle = NULL; //Store handles so that we can kill them if user goes into WiFi NTRIP Server mode
 TaskHandle_t F9PSerialWriteTaskWiFiHandle = NULL; //Store handle to NTRIP client task in case we need to halt
-
-TaskHandle_t McityOSF9PSerialReadTaskHandle = NULL; //Mcity OS PSM/BSM construction task handle
-TaskHandle_t McityOSSendV2XTaskHandle = NULL; //Mcity OS task transmission handle
-
 TaskHandle_t startUART2TaskHandle = NULL; //Dummy task to start UART2 on core 0.
 bool uart2Started = false;
 
 //Reduced stack size from 10,000 to 2,000 to make room for WiFi/NTRIP server capabilities
 const int readTaskStackSize = 2000;
 const int writeTaskStackSize = 2000;
-const int mcityReadTaskStackSize = 2500;
-const int mcityV2XTaskStackSize = 6000;
 
 char incomingBTTest = 0; //Stores incoming text over BT when in test mode
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
@@ -387,8 +372,8 @@ void loop()
   reportHeap(); //If debug enabled, report free heap
 
   if (settings.enableMcityOS == true)
-    socketIO.loop();
-    
+    updateMcityOS();
+  
   //Menu system via ESP32 USB connection
   if (Serial.available()) menuMain(); //Present user menu
 

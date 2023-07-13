@@ -9,7 +9,6 @@ void updateDisplay()
       lastDisplayUpdate = millis();
 
       oled.clear(PAGE); // Clear the display's internal buffer
-      //oled.reset(true);
 
       switch (systemState)
       {

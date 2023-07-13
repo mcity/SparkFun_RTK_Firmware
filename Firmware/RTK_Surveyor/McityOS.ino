@@ -4,11 +4,45 @@
  *  Created on: 20.07.2019
  *
  */
+ 
+// Websocket connection to Mcity OS
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+#include <ArduinoJson.h>
+#include <SocketIOclient.h>
+
+void socketIOSendWithNamespace(socketIOmessageType_t type, String payload);
+void socketIOSendEventWithNamespace(String payload);
+void socketIOEventHandler(socketIOmessageType_t type, uint8_t * payload, size_t length);
+
+SocketIOclient socketIO;
+
+TaskHandle_t McityOSF9PSerialReadTaskHandle = NULL; //Mcity OS PSM/BSM construction task handle
+TaskHandle_t McityOSSendV2XTaskHandle = NULL; //Mcity OS task transmission handle
+
+const int mcityReadTaskStackSize = 2500;
+const int mcityV2XTaskStackSize = 6000;
+
+// How many milliseconds between sending PSMs to Mcity OS? 0 sends as fast as we can
+#define MCITY_MS_BETWEEN_PSMS 200
+
+char latitude_str[12];
+char longitude_str[12];
+char elevation_str[12];
+char speed_str[12];
+char heading_str[12];
+char date_str[26];
+long alt;
+char json_psm[375] = "['v2x_PSM', {'id': 1, 'payload': {'longitude': -83.698641, 'latitude': 42.299598}}]";
+bool v2xMessageAvailable;
+uint32_t lastMcityOSSend = 0;
+
 bool mcityOSConnected = false;
-String mcitySocketIONamespace = "/octane";
+const char* mcitySocketIONamespacePrefix = "/octane,";
+
+//=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 void socketIOSendWithNamespace(socketIOmessageType_t type, String payload) {
-    socketIO.send(type, mcitySocketIONamespace + "," + payload);
+    socketIO.send(type, mcitySocketIONamespacePrefix + payload);
 }
 
 void socketIOSendEventWithNamespace(String payload) {
@@ -59,42 +93,6 @@ void socketIOEventHandler(socketIOmessageType_t type, uint8_t * payload, size_t 
             printDebug("SocketIOClient: got event ");
             printDebug((char*)payload);
             printDebug("\n");
-
-            // if(id) {
-            //     payload = (uint8_t *)sptr;
-            // }
-            // DynamicJsonDocument doc(1024);
-            // DeserializationError error = deserializeJson(doc, payload, length);
-            // if(error) {
-            //     printDebug("SocketIOClient: deserializeJson() failed with ");
-            //     printDebug(error.c_str());
-            //     printDebug("\n");
-            //     return;
-            // }
-
-            // String eventName = doc[0];
-            // printDebug("SocketIOClient: event name ");
-            // printDebug(eventName.c_str());
-            // printDebug("\n");
-
-            // // Message Includes a ID for a ACK (callback)
-            // if(id) {
-            //     // creat JSON message for Socket.IO (ack)
-            //     DynamicJsonDocument docOut(1024);
-            //     JsonArray array = docOut.to<JsonArray>();
-
-            //     // add payload (parameters) for the ack (callback function)
-            //     JsonObject param1 = array.createNestedObject();
-            //     param1["now"] = millis();
-
-            //     // JSON to String (serializion)
-            //     String output;
-            //     output += id;
-            //     serializeJson(docOut, output);
-
-            //     // Send event
-            //     socketIO.send(sIOtype_ACK, output);
-            // }
         }
             break;
         case sIOtype_ACK:
@@ -106,6 +104,9 @@ void socketIOEventHandler(socketIOmessageType_t type, uint8_t * payload, size_t 
             printDebug("SocketIOClient: got error ");
             printDebug((char*)payload);
             printDebug("\n");
+
+            mcityOSConnected = false;
+
             break;
         case sIOtype_BINARY_EVENT:
             printDebug("SocketIOClient: got binary data\n");
@@ -114,6 +115,90 @@ void socketIOEventHandler(socketIOmessageType_t type, uint8_t * payload, size_t 
             printDebug("SocketIOClient: got binary ack\n");
             break;
     }
+}
+
+//If the ZED has any new NMEA data, pass it over to Mcity OS
+//Task for reading data from the GNSS receiver.
+void McityOSF9PSerialReadTask(void *e)
+{
+  while (true)
+  {
+    if (serialGNSS.available())
+    {
+      char c = serialGNSS.read();
+      //Serial.print(c);
+
+      //If we are actively survey-in then do not pass NMEA data from ZED to phone
+      if (systemState == STATE_BASE_TEMP_SETTLE || systemState == STATE_BASE_TEMP_SURVEY_STARTED)
+      {
+        //Do nothing
+      }
+      else if (nmea.process(c) && nmea.isValid() && !v2xMessageAvailable) {
+        dtostrf(nmea.getLatitude() / 1000000.0, 0, 7, latitude_str);
+        dtostrf(nmea.getLongitude() / 1000000.0, 0, 7, longitude_str);
+        if (nmea.getAltitude(alt))
+          dtostrf(alt / 1000., 0, 3, elevation_str);
+        else
+          // JSON null, so the string
+          strcpy(elevation_str, "0");  // Bug in McityOS doesn't allow null for this field. Send 0 for now. 
+
+        dtostrf(nmea.getSpeed() / 1000., 0, 3, speed_str);
+        dtostrf(nmea.getCourse() / 1000., 0, 3, heading_str);
+
+        // Expected format is 2023-07-08T16:42:16.236Z
+        snprintf(date_str, sizeof(date_str), "%d-%02d-%02dT%02d:%02d:%02d.%03dZ", 
+          nmea.getYear(), nmea.getMonth(), nmea.getDay(), nmea.getHour(),
+          nmea.getMinute(), nmea.getSecond(), nmea.getHundredths());
+
+        nmea.clear();
+
+        sprintf_P(json_psm, PSTR("[\"v2x_PSM\", {\"id\": 1, \"payload\": {"
+                            "\"messageSet\": \"J2735_201603\","
+                            // updated wasn't working in Mcity OS. Re-add once fixed to ensure we're using the GPS time
+                            //"\"updated\": \"%s\","
+                            "\"id\": \"0010BEEF\","
+                            "\"type\": \"pedestrian\","
+                            "\"size\": \"small\","
+                            "\"latitude\": %s,"
+                            "\"longitude\": %s,"
+                            "\"elevation\": %s,"
+                            "\"speed\": %s,"
+                            //"\"heading\": %s}}]"), date_str, latitude_str, longitude_str, elevation_str, 
+                            "\"heading\": %s}}]"), latitude_str, longitude_str, elevation_str, 
+                                                   speed_str, heading_str);
+
+        v2xMessageAvailable = true;
+      }
+    }
+
+    taskYIELD();
+  }
+}
+
+//If the we have a new PSM/BSM to send to Mcity OS, do so
+void McityOSSendV2XTask(void *e)
+{
+  while (true)
+  {
+    if (v2xMessageAvailable && (millis() - lastMcityOSSend > MCITY_MS_BETWEEN_PSMS) 
+      && (systemState == STATE_ROVER_RTK_FLOAT || systemState == STATE_ROVER_RTK_FIX))
+    {
+      lastMcityOSSend = millis();
+
+      // Send event
+      if (socketIO.isConnected() && mcityOSConnected) {
+        printDebug("Sending position: ");
+        printDebug(json_psm);
+        printDebug("\n");
+        
+        socketIOSendEventWithNamespace(json_psm);
+      }
+
+      v2xMessageAvailable = false;
+    }
+
+    taskYIELD();
+  }
 }
 
 void setupMcityOS() {
@@ -125,14 +210,17 @@ void setupMcityOS() {
 
     Serial.println("McityOS enabled, establishing websocket connection");
 
-    // server address, port and URL
+    // server address and port (uses EIO v3 by default, as there were Mcity OS server issues with v4)
     if (settings.mcityOSServerUseSSL) 
-      socketIO.beginSSL(settings.mcityOSServer, settings.mcityOSServerPort, "/socket.io/?EIO=4");
+      socketIO.beginSSL(settings.mcityOSServer, settings.mcityOSServerPort);//, "/socket.io/?EIO=4");
     else
-      socketIO.begin(settings.mcityOSServer, settings.mcityOSServerPort, "/socket.io/?EIO=4");
+      socketIO.begin(settings.mcityOSServer, settings.mcityOSServerPort);//, "/socket.io/?EIO=4");
 
     // event handler
     socketIO.onEvent(socketIOEventHandler);
 }
 
+void updateMcityOS() {
 
+  socketIO.loop();
+}
