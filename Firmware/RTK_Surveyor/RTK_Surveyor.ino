@@ -129,16 +129,6 @@ const TickType_t fatSemaphore_longWait_ms = 200 / portTICK_PERIOD_MS;
 WiFiClient caster;
 const char * ntrip_server_name = "SparkFun_RTK_Surveyor";
 
-#include "NTRIPClient.h"
-
-NTRIPClient ntrip_c;
-
-//NMEA parser for transmission to McityOS
-#include <MicroNMEA.h>
-
-char nmeaBuffer[85];
-MicroNMEA nmea(nmeaBuffer, sizeof(nmeaBuffer));
-
 unsigned long lastServerSent_ms = 0; //Time of last data pushed to caster
 unsigned long lastServerReport_ms = 0; //Time of last report of caster bytes sent
 int maxTimeBeforeHangup_ms = 10000; //If we fail to get a complete RTCM frame after 10s, then disconnect from caster
@@ -214,7 +204,6 @@ uint8_t rBuffer[SERIAL_SIZE_RX]; //Buffer for reading from F9P to SPP
 uint8_t wBuffer[SERIAL_SIZE_RX]; //Buffer for writing from incoming SPP to F9P
 TaskHandle_t F9PSerialReadTaskHandle = NULL; //Store handles so that we can kill them if user goes into WiFi NTRIP Server mode
 TaskHandle_t F9PSerialWriteTaskHandle = NULL; //Store handles so that we can kill them if user goes into WiFi NTRIP Server mode
-TaskHandle_t F9PSerialWriteTaskWiFiHandle = NULL; //Store handle to NTRIP client task in case we need to halt
 TaskHandle_t startUART2TaskHandle = NULL; //Dummy task to start UART2 on core 0.
 bool uart2Started = false;
 
@@ -228,13 +217,11 @@ char incomingBTTest = 0; //Stores incoming text over BT when in test mode
 //External Display
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 #include <SFE_MicroOLED.h> //Click here to get the library: http://librarymanager/All#SparkFun_Micro_OLED
-//#include <SparkFun_Qwiic_OLED.h>
 #include "icons.h"
 
 #define PIN_RESET 9
 #define DC_JUMPER 1
 MicroOLED oled(PIN_RESET, DC_JUMPER);
-//QwOLEDMicro oled();
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
 //Firmware binaries loaded from SD

@@ -1,36 +1,6 @@
 //High frequency tasks made by createTask()
 //And any low frequency tasks that are called by Ticker
 
-//If the ntrip caster has any new data (NTRIP RTCM, etc), read it in over WiFi and pass along to ZED
-//Task for writing to the GNSS receiver
-void F9PSerialWriteTaskWiFi(void *e)
-{
-  while (true)
-  {
-    //Receive RTCM corrections WiFi and pass along to ZED
-    if (ntrip_c.available())
-    {
-      while (ntrip_c.available())
-      {
-        if (inTestMode == false)
-        {
-          //Pass bytes to GNSS receiver
-          char ch = ntrip_c.read();
-          serialGNSS.write(ch);
-        }
-        else
-        {
-          char ch = ntrip_c.read();
-          Serial.printf("I heard: %c\n", ch);
-          incomingBTTest = ch; //Displayed during system test
-        }
-      }
-    }
-
-    taskYIELD();
-  }
-}
-
 //If the phone has any new data (NTRIP RTCM, etc), read it in over Bluetooth and pass along to ZED
 //Task for writing to the GNSS receiver
 void F9PSerialWriteTask(void *e)

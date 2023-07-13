@@ -152,25 +152,7 @@ void startWiFi()
 
   //Start the tasks for handling outgoing bytes from ZED-F9P to Mcity OS
   if (settings.enableMcityOS == true)
-  {
-    if (McityOSF9PSerialReadTaskHandle == NULL)
-      xTaskCreate(
-        McityOSF9PSerialReadTask,
-        "McityOS F9Read", //Just for humans
-        mcityReadTaskStackSize, //Stack Size
-        NULL, //Task input parameter
-        0, //Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
-        &McityOSF9PSerialReadTaskHandle); //Task handle
-  
-    if (McityOSSendV2XTaskHandle == NULL)
-      xTaskCreate(
-        McityOSSendV2XTask,
-        "McityOS V2XSend", //Just for humans
-        mcityV2XTaskStackSize, //Stack Size
-        NULL, //Task input parameter
-        0, //Priority, with 3 (configMAX_PRIORITIES - 1) being the highest, and 0 being the lowest.
-        &McityOSSendV2XTaskHandle); //Task handle
-  }
+    startMcityOSTasks();
       
   radioState = WIFI_ON_NOCONNECTION;
 }
@@ -179,18 +161,13 @@ void startWiFi()
 //See WiFiBluetoothSwitch sketch for more info
 void stopWiFi()
 {
-  //Delete tasks if running
-  if (McityOSF9PSerialReadTaskHandle != NULL)
-  {
-    vTaskDelete(McityOSF9PSerialReadTaskHandle);
-    McityOSF9PSerialReadTaskHandle = NULL;
-  }
+  stopMcityOSTasks();
   
   caster.stop();
   WiFi.mode(WIFI_OFF);
   esp_wifi_deinit(); //Free all resources
   Serial.println("WiFi Stopped");
-  
+
   radioState = RADIO_OFF;
 }
 
